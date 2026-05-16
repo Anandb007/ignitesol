@@ -14,8 +14,8 @@ env:
   ECR_REPOSITORY: sample-test
   EKS_CLUSTER_NAME: ignitesol-dev-eks
   AWS_ACCOUNT_ID: 163649805097
-  IMAGE_TAG: ${{ github.sha }}
-
+  #IMAGE_TAG: ${{ github.sha }}
+  IMAGE_TAG: ${{ github.sha }}-${{ github.run_number }}
 jobs:
   deploy:
     runs-on: ubuntu-latest
