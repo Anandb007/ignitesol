@@ -1,0 +1,61 @@
+name: Deploy to EKS
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: sample-test
+  EKS_CLUSTER_NAME: ignitesol-dev-eks
+  AWS_ACCOUNT_ID: 163649805097
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::163649805097:role/ignitesol_Ci-CD_part
+        aws-region: us-east-1
+
+    - name: Login to Amazon ECR
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Build Docker Image
+      run: |
+        docker build -t $ECR_REPOSITORY:$IMAGE_TAG .
+
+    - name: Tag Docker Image
+      run: |
+        docker tag $ECR_REPOSITORY:$IMAGE_TAG \
+        $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:$IMAGE_TAG
+
+    - name: Push Docker Image
+      run: |
+        docker push \
+        $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:$IMAGE_TAG
+
+    - name: Update kubeconfig
+      run: |
+        aws eks update-kubeconfig \
+        --region $AWS_REGION \
+        --name $EKS_CLUSTER_NAME
+
+    - name: Deploy Application using Helm
+      run: |
+        helm upgrade --install sample-test ./helm/sample-test \
+        --set image.repository=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY \
+        --set image.tag=$IMAGE_TAG
