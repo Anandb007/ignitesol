@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: {{ include "sample-test.fullname" . }}
+
+spec:
+  replicas: {{ .Values.replicaCount }}
+
+  strategy:
+    type: RollingUpdate
+
+    rollingUpdate:
+      maxUnavailable: 3
+      maxSurge: 2
+
+  selector:
+    matchLabels:
+      app: sample-test
+
+  template:
+    metadata:
+      labels:
+        app: sample-test
+
+    spec:
+      priorityClassName: {{ .Values.priorityClass.name }}
+
+      containers:
+        - name: sample-test
+
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+
+          ports:
+            - containerPort: 8080
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+
+            initialDelaySeconds: 5
+            periodSeconds: 10
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+
+            initialDelaySeconds: 15
+            periodSeconds: 20
+
+          resources:
+{{ toYaml .Values.resources | indent 12 }}

@@ -1,0 +1,48 @@
+replicaCount: 8
+
+image:
+  repository: 163649805097.dkr.ecr.us-east-1.amazonaws.com/sample-test
+  tag: "v1.0.0"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8080
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+  limits:
+    cpu: 250m
+    memory: 256Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 8
+  maxReplicas: 12
+  targetCPUUtilizationPercentage: 50
+  targetMemoryUtilizationPercentage: 60
+
+podDisruptionBudget:
+  minAvailable: 5
+
+priorityClass:
+  name: high-priority-app
+  value: 1000000
+
+ingress:
+  enabled: true
+  className: alb
+
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
+
+  hosts:
+    - host: ""
+      paths:
+        - path: /
+          pathType: Prefix

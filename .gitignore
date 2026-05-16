@@ -20,3 +20,28 @@ __pycache__/
 
 # Environment
 .env
+
+
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+terraform.tfvars
+crash.log
+
+# kubeconfig
+kubeconfig
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Helm
+*.tgz
