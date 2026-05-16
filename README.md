@@ -431,9 +431,261 @@ COPY app.py .
 
 # Update PATH to include local binaries
 ENV PATH=/root/.local/bin:$PATH
+```
 
-# Expose application port
-EXPOSE 8080
 
-# Run the application using Gunicorn
-CMD ["gunicorn", "-w", "2", "-b", "0.0.0.0:8080", "app:app"]
+<div class="section">
+    <h2>Helm Chart Structure</h2>
+    <p>The application is deployed using a Helm chart located in <code>helm/sample-test</code>. This chart organizes Kubernetes resources in a modular and reusable way, enabling easy configuration, upgrades, and rollbacks.</p>
+
+<p>The directory structure of the Helm chart is as follows:</p>
+
+<pre><code>
+helm/sample-test
+├── Chart.yaml           
+├── charts               
+├── templates            
+│   ├── _helpers.tpl     
+│   ├── deployment.yaml  
+│   ├── hpa.yaml         
+│   ├── ingress.yaml     
+│   ├── pdb.yaml         
+│   ├── priorityclass.yaml 
+│   └── service.yaml     
+└── values.yaml          
+</code></pre>
+
+<p>This Helm chart structure allows for:</p>
+<ul>
+    <li>Separation of configuration values from templates</li>
+    <li>Reusable templates across environments</li>
+    <li>Easy integration with CI/CD pipelines (GitHub Actions)</li>
+    <li>Support for advanced Kubernetes features such as HPA, PDB, and priority classes</li>
+</ul>
+</div>
+
+
+
+
+
+
+
+<div>
+  <h2>Kubernetes Cluster Information</h2>
+
+  <pre>
+kubectl cluster-info
+Kubernetes control plane is running at https://0E7051FFB039A5277635629067CAB801.gr7.us-east-1.eks.amazonaws.com
+CoreDNS is running at https://0E7051FFB039A5277635629067CAB801.gr7.us-east-1.eks.amazonaws.com/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy
+
+To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
+
+aws eks list-clusters --region us-east-1
+{
+    "clusters": [
+        "ignitesol-dev-eks"
+    ]
+}
+
+kubectl get node
+NAME                          STATUS   ROLES    AGE     VERSION
+ip-10-0-11-120.ec2.internal   Ready    <none>   6h44m   v1.34.7-eks-7fcd7ec
+ip-10-0-12-234.ec2.internal   Ready    <none>   6h44m   v1.34.7-eks-7fcd7ec
+  </pre>
+</div>
+
+
+
+
+
+
+<div>
+  <h2> Deployment Evidence</h2>
+  <table border="1" cellpadding="8" cellspacing="0">
+    <thead>
+      <tr>
+        <th>Client Question</th>
+        <th>Actual Output / Evidence</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>How many replicas are running?</td>
+        <td>
+<pre>
+kubectl get deployment sample-test
+NAME          READY   UP-TO-DATE   AVAILABLE   AGE
+sample-test   8/8     8            8           5h31m
+</pre>
+        </td>
+      </tr>
+      <tr>
+        <td>Is autoscaling configured at 50% CPU and 60% memory?</td>
+        <td>
+<pre>
+kubectl get hpa sample-test-hpa
+NAME              REFERENCE                TARGETS                        MINPODS   MAXPODS   REPLICAS   AGE
+sample-test-hpa   Deployment/sample-test   cpu: 1%/50%, memory: 43%/60%   8         12        8          5h31m
+</pre>
+        </td>
+      </tr>
+      <tr>
+        <td>Is a custom Docker image used (sample-test:latest) hosted on ECR?</td>
+        <td>
+<pre>
+kubectl get pods -l app=sample-test -o=jsonpath='{.items[*].spec.containers[*].image}'
+sample-test:1023946f1a323addc734d8f5822ae51f16cd87aa-4
+</pre>
+        </td>
+      </tr>
+      <tr>
+        <td>Is the app exposed on port 8080 via Load Balancer?</td>
+        <td>
+<pre>
+kubectl get svc sample-test-service
+NAME                  TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE
+sample-test-service   ClusterIP   172.20.21.252  &lt;none&gt;    8080/TCP   5h32m
+</pre>
+        </td>
+      </tr>
+      <tr>
+        <td>Are at least 5 replicas ensured during updates?</td>
+        <td>
+<pre>
+kubectl get pdb sample-test-pdb
+NAME              MIN AVAILABLE   MAX UNAVAILABLE   ALLOWED DISRUPTIONS   AGE
+sample-test-pdb   5               N/A               3                     5h32m
+
+kubectl describe pdb sample-test-pdb
+Status:
+    Allowed disruptions:  3
+    Current:              8
+    Desired:              5
+    Total:                8
+</pre>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Summary</h3>
+  <ul>
+    <li>High availability and scaling are ensured via Horizontal Pod Autoscaler (HPA) and Pod Disruption Budget (PDB).</li>
+    <li>The deployment uses a custom Docker image from ECR and runs 8 replicas at all times.</li>
+  </ul>
+
+  <p><strong>Conclusion:</strong> Deployment is fully compliant with client specifications, scalable, and production-ready.</p>
+</div>
+
+
+
+
+<div>
+  <h2>Metrics Overview</h2>
+  
+  <h3>Horizontal Pod Autoscaler (HPA)</h3>
+  <p>The HPA ensures the <strong>sample-test</strong> deployment scales automatically based on CPU and memory utilization.</p>
+  <pre>
+kubectl get hpa sample-test-hpa
+NAME              REFERENCE                TARGETS                        MINPODS   MAXPODS   REPLICAS   AGE
+sample-test-hpa   Deployment/sample-test   cpu: 1%/50%, memory: 43%/60%   8         12        8          5h51m
+  </pre>
+  <p><em>Insight:</em> CPU usage is currently very low (1%), memory usage around 43%, well below autoscaling thresholds. This indicates the deployment has sufficient headroom for traffic spikes.</p>
+
+
+
+  <h3>Pod Resource Usage</h3>
+  <pre>
+kubectl top pods
+NAME                           CPU(cores)   MEMORY(bytes)
+sample-test-5f46b6fd65-brk7s   1m           55Mi
+sample-test-5f46b6fd65-cjpg2   1m           56Mi
+sample-test-5f46b6fd65-fhgw5   1m           55Mi
+sample-test-5f46b6fd65-gb9lq   1m           56Mi
+sample-test-5f46b6fd65-l4nxw   1m           55Mi
+sample-test-5f46b6fd65-mftcl   1m           56Mi
+sample-test-5f46b6fd65-ns286   1m           55Mi
+sample-test-5f46b6fd65-vf9wt   1m           55Mi
+  </pre>
+  <p><em>Insight:</em> All pods are running at minimal CPU usage (~1m) and stable memory (~55-56Mi). This confirms pods are healthy and the system is not under stress.</p>
+
+  <h3>Ingress and External Access</h3>
+  <pre>
+kubectl get ingress
+NAME                  CLASS   HOSTS   ADDRESS                                                                  PORTS   AGE
+sample-test-ingress   alb     *       k8s-default-samplete-e1682dd1d0-1740006910.us-east-1.elb.amazonaws.com   80      5h50m
+
+curl http://k8s-default-samplete-e1682dd1d0-1740006910.us-east-1.elb.amazonaws.com
+{"hostname":"sample-test-5f46b6fd65-brk7s","message":"Ignitesol Sample Application Running","status":"success"}
+  </pre>
+  <p><em>Insight:</em> The application is accessible externally through the ALB, confirming successful routing and that the sample-test app is responding correctly.</p>
+
+  <h3>Service Exposure</h3>
+  <pre>
+kubectl get svc
+NAME                  TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE
+kubernetes            ClusterIP   172.20.0.1      &lt;none&gt;    443/TCP    6h30m
+sample-test-service   ClusterIP   172.20.21.252   &lt;none&gt;    8080/TCP   5h51m
+  </pre>
+  <p><em>Insight:</em> The ClusterIP service exposes the application internally on port 8080. External traffic is managed by the ingress ALB.</p>
+
+  <h3>Metrics Server Deployment</h3>
+  <pre>
+kubectl get deployment metrics-server -n kube-system
+NAME             READY   UP-TO-DATE   AVAILABLE   AGE
+metrics-server   1/1     1            1           6h18m
+  </pre>
+  <p><em>Insight:</em> The metrics-server is healthy and available, enabling HPA to retrieve accurate CPU and memory metrics for autoscaling.</p>
+</div>
+
+
+
+
+
+<div>
+  <h2>Horizontal Pod Autoscaler (HPA) Live Watch</h2>
+  <p>The following is the live HPA watch output for the <strong>sample-test</strong> deployment. It shows how replicas scale dynamically based on CPU and memory usage.</p>
+
+  <pre>
+NAME              REFERENCE                TARGETS                        MINPODS   MAXPODS   REPLICAS   AGE
+sample-test-hpa   Deployment/sample-test   cpu: 1%/50%, memory: 43%/60%   8         12        8          3h6m
+sample-test-hpa   Deployment/sample-test   cpu: 6%/50%, memory: 43%/60%   8         12        8          3h7m
+sample-test-hpa   Deployment/sample-test   cpu: 19%/50%, memory: 43%/60%  8         12        8          3h7m
+sample-test-hpa   Deployment/sample-test   cpu: 16%/50%, memory: 43%/60%  8         12        8          3h7m
+sample-test-hpa   Deployment/sample-test   cpu: 19%/50%, memory: 43%/60%  8         12        8          3h7m
+sample-test-hpa   Deployment/sample-test   cpu: 19%/50%, memory: 43%/60%  8         12        8          3h8m
+sample-test-hpa   Deployment/sample-test   cpu: 20%/50%, memory: 43%/60%  8         12        8          3h8m
+sample-test-hpa   Deployment/sample-test   cpu: 20%/50%, memory: 43%/60%  8         12        8          3h8m
+sample-test-hpa   Deployment/sample-test   cpu: 20%/50%, memory: 43%/60%  8         12        8          3h8m
+sample-test-hpa   Deployment/sample-test   cpu: 19%/50%, memory: 43%/60%  8         12        8          3h9m
+sample-test-hpa   Deployment/sample-test   cpu: 20%/50%, memory: 43%/60%  8         12        8          3h9m
+sample-test-hpa   Deployment/sample-test   cpu: 10%/50%, memory: 43%/60%  8         12        8          3h9m
+sample-test-hpa   Deployment/sample-test   cpu: 1%/50%, memory: 43%/60%   8         12        8          3h10m
+sample-test-hpa   Deployment/sample-test   cpu: 62%/50%, memory: 43%/60%  8         12        8          3h10m
+sample-test-hpa   Deployment/sample-test   cpu: 164%/50%, memory: 45%/60% 8         12        10         3h11m
+sample-test-hpa   Deployment/sample-test   cpu: 42%/50%, memory: 45%/60%  8         12        12         3h11m
+sample-test-hpa   Deployment/sample-test   cpu: 36%/50%, memory: 45%/60%  8         12        12         3h11m
+sample-test-hpa   Deployment/sample-test   cpu: 119%/50%, memory: 45%/60% 8         12        12         3h12m
+sample-test-hpa   Deployment/sample-test   cpu: 1%/50%, memory: 45%/60%   8         12        12         3h12m
+sample-test-hpa   Deployment/sample-test   cpu: 1%/50%, memory: 45%/60%   8         12        12         3h13m
+sample-test-hpa   Deployment/sample-test   cpu: 1%/50%, memory: 45%/60%   8         12        12         3h14m
+  </pre>
+
+  <p><strong>Explanation:</strong> The HPA dynamically adjusts the number of replicas based on CPU usage. For instance, when CPU spikes above 100%, replicas increased from 8 → 10 → 12. Memory usage remains stable at 43–45%, so scaling is primarily CPU-driven. This ensures the application stays responsive during varying traffic loads.</p>
+</div>
+
+
+
+
+
+
+<div>
+  <h2>Note</h2>
+  <p>⚠️ Due to billing concerns, the current infrastructure has been deleted. If needed again, it can be recreated, and I will provide the access links to the services once the cluster is up.</p>
+
+  <pre>
+# Note:
+# - All EKS cluster resources have been removed.
+# - If required, the infrastructure can be recreated quickly, and links to access the application and services will be shared.
+  </pre>
+</div>
