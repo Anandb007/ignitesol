@@ -24,7 +24,8 @@ spec:
         app: sample-test
 
     spec:
-      priorityClassName: {{ .Values.priorityClass.name }}
+      priorityClassName: high-priority-app
+      #priorityClassName: {{ .Values.priorityClass.name }}
 
       containers:
         - name: sample-test

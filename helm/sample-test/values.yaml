@@ -5,6 +5,15 @@ image:
   tag: "v1.0.0"
   pullPolicy: IfNotPresent
 
+imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  name: ""
+
 service:
   type: ClusterIP
   port: 8080
@@ -20,15 +29,19 @@ resources:
 
 autoscaling:
   enabled: true
+
   minReplicas: 8
   maxReplicas: 12
+
   targetCPUUtilizationPercentage: 50
   targetMemoryUtilizationPercentage: 60
 
 podDisruptionBudget:
+  enabled: true
   minAvailable: 5
 
 priorityClass:
+  enabled: true
   name: high-priority-app
   value: 1000000
 
@@ -40,6 +53,7 @@ ingress:
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
+    alb.ingress.kubernetes.io/healthcheck-path: /
 
   hosts:
     - host: ""

@@ -1,4 +1,7 @@
+{{- if .Values.autoscaling.enabled }}
+
 apiVersion: autoscaling/v2
+
 kind: HorizontalPodAutoscaler
 
 metadata:
@@ -14,22 +17,21 @@ spec:
   maxReplicas: {{ .Values.autoscaling.maxReplicas }}
 
   metrics:
-    - type: Resource
 
+    - type: Resource
       resource:
         name: cpu
 
         target:
           type: Utilization
-
           averageUtilization: {{ .Values.autoscaling.targetCPUUtilizationPercentage }}
 
     - type: Resource
-
       resource:
         name: memory
 
         target:
           type: Utilization
-
           averageUtilization: {{ .Values.autoscaling.targetMemoryUtilizationPercentage }}
+
+{{- end }}

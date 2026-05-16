@@ -1,9 +1,12 @@
 apiVersion: scheduling.k8s.io/v1
 kind: PriorityClass
-metadata:
-  name: {{ .Values.priorityClass.name }}
 
-value: {{ .Values.priorityClass.value }}
+metadata:
+  name: high-priority-app
+
+value: 1000000000
+
 globalDefault: false
 
 description: "High priority application pods"
+#description: "Application pods with priority higher than daemonsets"
